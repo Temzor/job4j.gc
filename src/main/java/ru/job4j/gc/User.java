@@ -1,16 +1,19 @@
 package ru.job4j.gc;
 
 public class User {
-    private final String name;
-    private final String surname;
-    private final String patronymic;
-    private final int age;
+    private String name;
+    private String surname;
+    private String patronymic;
+    private int age;
 
     public User(String name, String surname, String patronymic, int age) {
         this.name = name;
         this.surname = surname;
         this.patronymic = patronymic;
         this.age = age;
+    }
+
+    public User() {
     }
 
     @Override
