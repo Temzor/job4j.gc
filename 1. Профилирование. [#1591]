@@ -1,0 +1,72 @@
+Профилирование, анализ работы приложения ProfilingGC различными инструментами:
+Дано:
+ * конфигурация запуска VM Java -Xmx250M -XX:NewRatio=4 "-Xlog:gc*" -XX:+UseSerialGC
+ * Работаем в анализе из 2 циклов:
+  private static void add(MemTestTracker tracker) {
+        for (int i = 0; i < 1_000_000_000; i++) {
+            Item item = new Item(i, "SOS, i'm fired" + (i * 35), LocalDateTime.now());
+            tracker.add(item);
+            System.out.println(i);
+        }
+    }
+
+    private static void delete(MemTestTracker tracker) {
+        for (int i = 0; i < 1_000_000_000; i++) {
+            tracker.delete(i);
+            System.out.println(i);
+        }
+---------------------------------------------------------------
+1. jps
+ * Узнал pid процесса ProfilingGC: 5060 ProfilingGC
+ 
+=============================================
+2 jmap -histo 5060
+            №          Instances     Bytes   Class.name
+ * Start    1:          1071        2878712   [I (java.base@17.0.1)
+ * Finish   601:          1             16    sun.util.resources.provider.NonBaseLocaleDataMetaInfo (jdk.localedata@17.0.1)
+=============================================
+3 jstat -gc 5060 1s 1000 - сводная информация о состоянии памяти
+START: 
+ S0C    S1C    S0U    S1U      EC       EU        OC         OU       MC     MU    CCSC   CCSU   YGC     YGCT    FGC    FGCT    CGC    CGCT     GCT
+5120,0 5120,0  0,0    0,0   40960,0   4915,6   204800,0     0,0      0,0    0,0    0,0    0,0        0    0,000   0      0,000   -          -    0,000
+YGC	Число молодых Событий GC генерации запускался раз - 15.
+FGC	Число полных событий GC - 143.
+GCT	Полное время сборки "мусора" - 52,513. Т.Е. 5,2% наблюдения за работой GC занял сам сборщик.
+=============================================
+ 4 jconsole показал следующее:
+ При -Xmx250M -XX:NewRatio=4 "-Xlog:gc*" -XX:+UseSerialGC: Done!
+ * MAX CPU Usage = 12.4%
+ * Clases Loaded = 2 208, Unloaded = 60, Total = 2 268;
+ * Heap Memory Used = 255.1 Mb, Commited = 256.9 Mb, MAX = 256.9 Mb.
+ * Theads Live, Peak и Total = 16;
+ 
+ При-Xmx25M -XX:NewRatio=5 "-Xlog:gc*" -XX:+UseSerialGC, Crash on 62.388s with error:
+ [62.388s][info][gc,heap,exit   ]   class space    used 704K, committed 896K, reserved 1048576K
+ Exception in thread "main" java.lang.OutOfMemoryError: Java heap space
+ * MAX CPU Usage = 1%, 
+ * Clases Loaded = 2 208, Unloaded = 0, Total = 2 268;
+ * Heap Memory Used = 6 Mb, Commited = 26.9 Mb, MAX = 25.9 Mb.
+
+ 
+ При -Xmx250M -XX:NewRatio=5 "-Xlog:gc*" -XX:+UseParallelGC, Crash on 70.166s with error:
+ [70.166s][info][gc,heap,exit   ]   class space    used 722K, committed 960K, reserved 1048576K
+ Exception in thread "main" java.lang.OutOfMemoryError: Java heap space
+ * MAX CPU Usage = 12.0% 
+ * Clases Loaded = 2 250, Unloaded = 50, Total = 2 300;
+ * Heap Memory Used = 248.3 Mb, Commited = 262.1 Mb, MAX = 262.1 Mb.
+ * Theads Live, Peak и Total = 17;
+ 
+ При -Xlog:gc* -XX:+UseG1GC, Done:
+ * MAX CPU Usage = 94.8% 
+ * Clases Loaded = 2 246, Unloaded = 96, Total = 2 342;
+ * Heap Memory Used = 4.3 Gb, Commited = 4.3 G, MAX = 4.3 G.
+ * Theads Live = 14, Peak и Total = 16;
+ 
+ 
+ 
+ Выводы:
+ 1) При добавлении элементов идет значительная динамика потребления Heap Memory, а при удалении гораздо плавнее.
+ 2) Большая нагрузка происходит при добавлении элемента.
+ 3) При выборе невреных значений -XmxXM -XX:NewRatio=X в меньшую сторону от реальныго потребления, 
+ 100% вероятность получить не обрабатываемую ошибку Java heap space или GC overhead limit exceeded.
+ 
