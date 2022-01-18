@@ -39,20 +39,4 @@ public class SoftReferenceDemo {
         }
         System.out.println(liveObject);
     }
-
-    private static void unsafe() {
-        List<SoftReference<Object>> someData = new ArrayList<>();
-        if (someData.get(0).get() != null) {
-        } else {
-        }
-        someData.get(0).get();
-    }
-
-    private static void safe() {
-        List<SoftReference<Object>> someData = new ArrayList<>();
-        Object strong = someData.get(0).get();
-        if (strong != null) {
-        } else {
-        }
-    }
 }
