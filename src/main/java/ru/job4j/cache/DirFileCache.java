@@ -1,37 +1,24 @@
 package ru.job4j.cache;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Objects;
-import java.util.StringJoiner;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+
 
 public class DirFileCache extends AbstractCache<String, String> {
 
     private final String cachingDir;
 
     public DirFileCache(String cachingDir) {
-        File directory = new File(cachingDir);
-        if (!directory.isDirectory()) {
-            throw new IllegalArgumentException(
-                    String.format("Directory \"%s\" is not found", cachingDir)
-            );
-        }
-        for (File file : Objects.requireNonNull(directory.listFiles())) {
-            if (file.isFile()) {
-                put(file.getName(), null);
-            }
-        }
         this.cachingDir = cachingDir;
-
     }
 
     @Override
     protected String load(String key) {
-        StringJoiner stringJoiner = new
-                StringJoiner(System.lineSeparator());
+        System.out.println("Start load file in cache.");
+        String result = null;
         File file = new File(cachingDir + "\\\\" + key);
         if (!file.exists()) {
             throw new IllegalArgumentException(
@@ -43,12 +30,11 @@ public class DirFileCache extends AbstractCache<String, String> {
                     String.format("Incorrect file - \"%s\"", key)
             );
         }
-        try (BufferedReader reader  = new BufferedReader(
-                new FileReader(file, StandardCharsets.UTF_8))) {
-            reader.lines().forEach(stringJoiner::add);
+        try {
+            result = Files.readString(Paths.get(cachingDir, key), StandardCharsets.UTF_8);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return stringJoiner.toString();
+        return result;
     }
 }
